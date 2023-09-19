@@ -1,11 +1,12 @@
 package service
 
-import cats.effect.concurrent.Semaphore
-import cats.effect.{Concurrent, ConcurrentEffect, ContextShift, Sync, Timer}
+import cats.effect.concurrent.Ref
+import cats.effect.{Concurrent, ConcurrentEffect, ContextShift, Timer}
 import cats.implicits._
 import config.KafkaConfig
 import fs2.kafka._
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
+import utils.ResettableDeferred
 
 object Pipeline {
 
@@ -85,7 +86,8 @@ object Pipeline {
       }
 
       for {
-        semaphore <- Semaphore[F](0)
+        signalDef <- ResettableDeferred[F, Unit]
+        signalRef <- Ref.of[F, Boolean](false)
 
         way <- Concurrent[F].start {
           KafkaConsumer
@@ -95,11 +97,15 @@ object Pipeline {
             .map(_.evalMap { committableRecord =>
               processWayRecord(committableRecord)
                 .flatMap { result =>
-                  semaphore.release >> Sync[F].pure(result)
+                  (for {
+                    signal <- signalRef.get
+                    _      <- signalRef.set(true).whenA(!signal)
+                    _      <- signalDef.complete(()).unlessA(signal)
+                  } yield result).pure[F]
                 }
             })
             .parJoinUnbounded
-            .through(offsetStream => offsetStream.evalMap(_.commit))
+            .through(offsetStream => offsetStream.evalMap(record => record.flatMap(_.commit)))
             .compile
             .drain
         }
@@ -110,7 +116,7 @@ object Pipeline {
             .evalTap(_.subscribeTo(conf.consumers.queryIn.topic))
             .flatMap(_.partitionedStream)
             .map(_.evalMap { committableRecord =>
-              semaphore.acquire >> processQueryInRecord(committableRecord)
+              signalDef.get >> signalRef.set(false) >> signalDef.reset >> processQueryInRecord(committableRecord)
             })
             .parJoinUnbounded
             .through(KafkaProducer.pipe(queryOutSettings))
