@@ -1,0 +1,34 @@
+<configuration>
+
+    <appender name="SYNC_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_BASE_DIR:-target}/app.log}</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_BASE_DIR:-target}/app.log.%d{yyyy-MM-dd}
+            </fileNamePattern>
+            <maxHistory>3</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%date %level [%logger] [%thread] %message%n%xException</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="SYNC_STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%date %level [%logger] [%thread] %message%n%xException</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="FILE" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="SYNC_FILE"/>
+    </appender>
+
+    <appender name="STDOUT" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="SYNC_STDOUT"/>
+    </appender>
+
+    <root level="${LOG_LEVEL:-INFO}">
+        <appender-ref ref="${LOG_APPENDER:-STDOUT}"/>
+    </root>
+
+
+</configuration>
