@@ -3,6 +3,7 @@ package clickhouse.retry
 import cats.effect.{Concurrent, Sync, Timer}
 import cats.implicits.{catsSyntaxApplicativeError, catsSyntaxApply, toFlatMapOps}
 import clickhouse.retry.RetryException.{RetryBackoffException, RetryLimitedException}
+import io.chrisdavenport.log4cats.SelfAwareStructuredLogger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import io.circe.{DecodingFailure, ParsingFailure}
 
@@ -18,7 +19,7 @@ object Retry {
       C: Concurrent[F]
   ): Retry[F] =
     new Retry[F] {
-      private val log = Slf4jLogger.getLogger[F]
+      val log: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
 
       def retryRequest[A](request: F[A]): F[A] = {
         retryMode match {

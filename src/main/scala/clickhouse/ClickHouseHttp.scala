@@ -25,7 +25,7 @@ object ClickHouseHttp {
       retry: Retry[F]
   )(clickHouseConfig: ClickHouseConfig): ClickHouseHttp[F] =
     new ClickHouseHttp[F] {
-      private val log: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
+      val log: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
 
       def readRequest[A](query: String, database: String)(implicit decoder: Decoder[A]): F[A] = {
         val request = Request[F](
