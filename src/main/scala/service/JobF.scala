@@ -1,6 +1,5 @@
 package service
 
-import cats.data.OptionT
 import cats.effect.Concurrent.ops.toAllConcurrentOps
 import cats.effect.{ConcurrentEffect, ContextShift, ExitCode, Resource, Sync, Timer}
 import cats.implicits._
@@ -42,7 +41,7 @@ object JobF {
                 appConf.kafka.consumers.queryIn.consumerSettings[F, Option[QueryInRecord]],
                 appConf.kafka.producer.producerSettings[F, Option[QueryOutRecord]],
                 _.fold(Sync[F].unit)(writeCh.write),
-                _.traverse(queryInRecord => OptionT(readCh.getNearestRecord(queryInRecord)).value)
+                _.traverse(queryInRecord => readCh.getNearestRecord(queryInRecord))
               )
           }.background
           _ <- Resource.eval(
